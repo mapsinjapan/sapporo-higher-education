@@ -1,0 +1,887 @@
+<style>
+/* Layout: desktop = one screen. Header (title + filters) across the top; left column = fact cards over the map; right column = school-type donut over the school table. Phone = stacked, scrolling. */
+.sh {
+  --sh-ongoing: #3EE39A;
+  --sh-occasional: #34BCE3;
+  --sh-none: #E36021;
+  --sh-unassessed: #415C63;
+  --sh-type-1: var(--cds-chart-categorical-1);
+  --sh-type-2: var(--cds-chart-categorical-7);
+  --sh-type-3: var(--cds-chart-categorical-5);
+  --sh-screen: calc(100vh - 13.5rem);
+  font-family: var(--font-anthropic-sans);
+  color: var(--color-fg);
+  display: flex;
+  flex-direction: column;
+  gap: var(--cds-gap-md);
+}
+.sh button { font: inherit; color: inherit; }
+.sh-top { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: var(--cds-gap-md); }
+.sh-titleblock { min-width: 0; flex: 1 1 22rem; }
+.sh h1 { font-family: var(--font-anthropic-serif); font-weight: 400; font-size: var(--cds-font-size-title); margin: 0; text-wrap: balance; line-height: 1.15; }
+.sh-take { margin: var(--cds-gap-xs) 0 0; color: var(--color-fg-muted); font-size: var(--cds-font-size-body); max-width: 60ch; }
+.sh-take b, .sh-card b { font-weight: 500; color: var(--color-fg); }
+
+/* Filters */
+.sh-filterbar { display: flex; flex-wrap: wrap; align-items: flex-end; gap: var(--cds-gap-sm); }
+.sh-field { display: flex; flex-direction: column; gap: 2px; min-width: 0; position: relative; }
+.sh-field > span { font-size: var(--cds-font-size-caption); color: var(--color-fg-muted); letter-spacing: .02em; }
+.sh-select, .sh-dropbtn, .sh-search {
+  font: inherit; font-size: var(--cds-font-size-body); color: var(--color-fg);
+  background: var(--color-panel); border: 1px solid var(--color-border-line);
+  border-radius: var(--cds-radius); padding: 6px 10px; min-width: 9rem; max-width: 100%;
+}
+.sh-dropbtn { text-align: left; cursor: pointer; display: flex; justify-content: space-between; gap: var(--cds-gap-sm); }
+.sh-dropbtn::after { content: "▾"; color: var(--color-fg-muted); }
+.sh-drop { position: absolute; top: calc(100% + 4px); left: 0; z-index: 20; width: 16rem; max-width: 80vw;
+  background: var(--cds-surface-popover); border: 1px solid var(--cds-border); border-radius: var(--cds-radius);
+  box-shadow: var(--cds-shadow-popover); padding: var(--cds-pad-sm); display: grid; gap: 2px; max-height: 22rem; overflow: auto; }
+.sh-drop h4 { margin: var(--cds-gap-xs) 0 2px; font-size: var(--cds-font-size-caption); font-weight: 500; color: var(--color-fg-muted); }
+.sh-drop label { display: flex; align-items: center; gap: var(--cds-gap-sm); padding: 3px 4px; border-radius: 4px; cursor: pointer; font-size: var(--cds-font-size-body); }
+.sh-drop label:hover { background: var(--color-bg); }
+.sh-drop label small { margin-left: auto; color: var(--color-fg-muted); font-variant-numeric: tabular-nums; }
+.sh-drop .sh-drop-actions { display: flex; justify-content: space-between; border-top: 1px solid var(--color-border-line); margin-top: var(--cds-gap-xs); padding-top: var(--cds-gap-xs); }
+.sh-link { background: none; border: 0; padding: 2px 4px; cursor: pointer; color: var(--color-fg-muted); text-decoration: underline; font-size: var(--cds-font-size-caption); }
+.sh-check { display: flex; align-items: center; gap: 6px; font-size: var(--cds-font-size-caption); color: var(--color-fg-muted); padding-bottom: 8px; cursor: pointer; }
+.sh-reset { background: none; border: 1px solid var(--color-border-line); border-radius: var(--cds-radius); padding: 6px 10px; cursor: pointer; font-size: var(--cds-font-size-caption); }
+.sh-filtertoggle { display: none; }
+
+/* Tabs */
+.sh-tabs { display: flex; gap: var(--cds-gap-xs); border-bottom: 1px solid var(--color-border-line); }
+.sh-tab { background: none; border: 0; border-bottom: 2px solid transparent; padding: 6px 10px; cursor: pointer; color: var(--color-fg-muted); font-size: var(--cds-font-size-body); margin-bottom: -1px; }
+.sh-tab[aria-selected="true"] { color: var(--color-fg); border-bottom-color: var(--color-fg); }
+
+/* Body grid */
+.sh-body { display: grid; grid-template-columns: minmax(0, 1fr) minmax(19rem, 25rem); gap: var(--cds-gap-md); height: max(36rem, var(--sh-screen)); }
+.sh-left, .sh-right { display: flex; flex-direction: column; gap: var(--cds-gap-md); min-width: 0; min-height: 0; }
+.sh-panel { background: var(--color-panel); border: 1px solid var(--color-border-line); border-radius: var(--cds-radius); padding: var(--cds-pad-md); min-width: 0; }
+.sh-panel h2 { margin: 0; font-size: var(--cds-font-size-heading); font-weight: var(--cds-font-weight-medium); }
+.sh-note { margin: 2px 0 0; font-size: var(--cds-font-size-caption); color: var(--color-fg-muted); }
+
+/* Fact cards */
+.sh-cards { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--cds-gap-sm); }
+.sh-card { background: var(--color-panel); border: 1px solid var(--color-border-line); border-radius: var(--cds-radius); padding: var(--cds-pad-sm) var(--cds-pad-md); display: flex; flex-direction: column; gap: 2px; min-width: 0; text-align: left; }
+.sh-card .sh-k { font-size: var(--cds-font-size-caption); color: var(--color-fg-muted); }
+.sh-card .sh-v { font-family: var(--font-anthropic-serif); font-weight: 400; font-size: var(--cds-font-size-title); line-height: 1.1; font-variant-numeric: tabular-nums; }
+.sh-card .sh-v small { font-size: var(--cds-font-size-body); color: var(--color-fg-muted); font-family: var(--font-anthropic-sans); }
+.sh-card .sh-s { font-size: var(--cds-font-size-caption); color: var(--color-fg-muted); font-variant-numeric: tabular-nums; }
+.sh-card.sh-muted .sh-v { color: var(--color-fg-muted); font-size: var(--cds-font-size-heading); padding-block: 6px; }
+button.sh-card { cursor: pointer; }
+button.sh-card:hover { border-color: var(--color-fg-muted); }
+button.sh-card[aria-pressed="true"] { border-color: var(--sh-none); box-shadow: inset 0 0 0 1px var(--sh-none); }
+.sh-card .sh-hint { font-size: var(--cds-font-size-caption); color: var(--color-fg-muted); text-decoration: underline; text-underline-offset: 2px; }
+.sh-dot { display: inline-block; width: .6rem; height: .6rem; border-radius: 50%; vertical-align: baseline; margin-right: 4px; }
+
+/* Map */
+.sh-map { position: relative; flex: 1 1 auto; min-height: 20rem; padding: 0; overflow: hidden; }
+#map-svg { display: block; width: 100%; height: 100%; touch-action: none; cursor: grab; }
+#map-svg:active { cursor: grabbing; }
+.sh-ward { fill: var(--color-bg); stroke: var(--color-border-line); stroke-width: 1; vector-effect: non-scaling-stroke; }
+.sh-ward.sh-on { fill: var(--cds-chart-reference-tint); stroke: var(--color-fg-muted); }
+.sh-subway { fill: none; stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; vector-effect: non-scaling-stroke; pointer-events: none; }
+.sh-water { fill: #6295D7; fill-opacity: .38; fill-rule: evenodd; stroke: none; pointer-events: none; }
+.sh-jr, .sh-jr-fill, .sh-jr-dash { fill: none; stroke-linejoin: round; stroke-linecap: butt; vector-effect: non-scaling-stroke; pointer-events: none; }
+.sh-jr { stroke-width: 0; }
+.sh-jr-fill { stroke: #FFFFFF; stroke-width: 1.75; opacity: .9; }
+.sh-jr-dash { stroke-width: 1.75; stroke-dasharray: 5 4; opacity: .85; }
+.sh-legend .sh-line.sh-jrkey { height: 2px; border-radius: 0; background: repeating-linear-gradient(90deg, var(--sh-jrc) 0 4px, #FFFFFF 4px 7px) !important; opacity: .9; }
+.sh-credit { position: absolute; left: 50%; transform: translateX(-50%); bottom: 4px; font-size: 10px; color: var(--color-fg-muted); white-space: nowrap; pointer-events: none; }
+.sh-legend .sh-line { display: inline-block; width: 14px; height: 3px; border-radius: 2px; margin-right: 0; }
+.sh-legend .sh-legsep { border-top: 1px solid var(--color-border-line); margin-top: 3px; padding-top: 3px; }
+.sh-wardlabel { font-size: 11px; fill: var(--color-fg-muted); text-anchor: middle; pointer-events: none; paint-order: stroke; stroke: var(--color-bg); stroke-width: 3px; }
+.sh-pt { stroke: #FFFFFF; stroke-width: 1.25; cursor: pointer; }
+.sh-pt.sh-sel { stroke: var(--color-fg); stroke-width: 2.5; }
+.sh-cl text { font-size: 11px; font-weight: 600; text-anchor: middle; dominant-baseline: central; pointer-events: none; fill: #FFFFFF; }
+.sh-mapctl { position: absolute; top: var(--cds-pad-sm); left: var(--cds-pad-sm); display: flex; flex-direction: column; gap: 4px; }
+.sh-mapctl button { width: 2rem; height: 2rem; border-radius: var(--cds-radius); border: 1px solid var(--color-border-line); background: var(--color-panel); cursor: pointer; font-size: 1rem; line-height: 1; }
+.sh-north { width: 28px; height: 40px; position: absolute; left: var(--cds-pad-sm); bottom: var(--cds-pad-sm); color: var(--color-fg-muted); pointer-events: none; }
+.sh-legend { position: absolute; right: var(--cds-pad-sm); bottom: var(--cds-pad-sm); background: var(--color-panel); border: 1px solid var(--color-border-line); border-radius: var(--cds-radius); padding: var(--cds-pad-xs) var(--cds-pad-sm); font-size: var(--cds-font-size-caption); display: grid; gap: 2px; }
+.sh-legend div { display: flex; align-items: center; gap: 6px; }
+.sh-legend span.n { margin-left: auto; padding-left: var(--cds-gap-sm); font-variant-numeric: tabular-nums; color: var(--color-fg-muted); }
+.sh-maphint { position: absolute; top: var(--cds-pad-sm); right: var(--cds-pad-sm); font-size: var(--cds-font-size-caption); color: var(--color-fg-muted); background: var(--color-panel); border-radius: var(--cds-radius); padding: 2px 6px; }
+.sh-pop { position: absolute; z-index: 10; width: 17rem; max-width: calc(100% - 16px); background: var(--cds-surface-popover); border: 1px solid var(--cds-border); border-radius: var(--cds-radius); box-shadow: var(--cds-shadow-popover); padding: var(--cds-pad-sm) var(--cds-pad-md); font-size: var(--cds-font-size-caption); }
+.sh-pop h3 { margin: 0 1.5rem 2px 0; font-size: var(--cds-font-size-body); font-weight: 500; }
+.sh-pop dl { display: grid; grid-template-columns: auto 1fr; gap: 2px var(--cds-gap-sm); margin: var(--cds-gap-xs) 0 0; }
+.sh-pop dt { color: var(--color-fg-muted); }
+.sh-pop dd { margin: 0; min-width: 0; overflow-wrap: anywhere; }
+.sh-pop .sh-x { position: absolute; top: 4px; right: 4px; background: none; border: 0; cursor: pointer; font-size: 1rem; color: var(--color-fg-muted); padding: 4px 8px; }
+.sh-pop ul { list-style: none; margin: var(--cds-gap-xs) 0 0; padding: 0; display: grid; gap: 2px; max-height: 14rem; overflow: auto; }
+.sh-pop li button { background: none; border: 0; padding: 3px 0; cursor: pointer; text-align: left; display: flex; align-items: baseline; gap: 4px; }
+.sh-pop li button:hover { text-decoration: underline; }
+.sh-pop a { color: inherit; }
+
+/* Donut */
+.sh-typewrap { display: flex; align-items: center; gap: var(--cds-gap-md); margin-top: var(--cds-gap-xs); }
+.sh-donut { flex: 0 0 8.5rem; width: 8.5rem; height: 8.5rem; }
+.sh-donut svg { width: 100%; height: 100%; display: block; overflow: visible; }
+.sh-donut path { cursor: pointer; stroke: var(--color-panel); stroke-width: 2; }
+.sh-donut path.sh-dim { opacity: .3; }
+.sh-donut text { font-size: 11px; font-weight: 500; text-anchor: middle; dominant-baseline: central; pointer-events: none; fill: var(--color-bg); }
+.sh-donut .sh-center { fill: var(--color-fg); font-family: var(--font-anthropic-serif); font-size: 22px; font-weight: 400; }
+.sh-donut .sh-center2 { fill: var(--color-fg-muted); font-size: 10px; font-weight: 400; }
+.sh-typelegend { display: grid; gap: 4px; flex: 1; min-width: 0; font-size: var(--cds-font-size-caption); }
+.sh-typelegend button { display: grid; grid-template-columns: auto 1fr auto auto; align-items: center; gap: 6px; background: none; border: 0; padding: 2px 0; cursor: pointer; text-align: left; font-variant-numeric: tabular-nums; }
+.sh-typelegend .pc { color: var(--color-fg-muted); min-width: 2.6rem; text-align: right; }
+
+/* Tables */
+.sh-tablecard { flex: 1 1 auto; display: flex; flex-direction: column; min-height: 14rem; }
+.sh-tablehead { display: flex; justify-content: space-between; align-items: baseline; gap: var(--cds-gap-sm); flex-wrap: wrap; }
+.sh-scroll { flex: 1 1 auto; overflow: auto; margin-top: var(--cds-gap-sm); min-height: 0; }
+.sh-table { width: 100%; border-collapse: collapse; font-size: var(--cds-font-size-caption); font-variant-numeric: tabular-nums; }
+.sh-table th { position: sticky; top: 0; background: var(--color-panel); text-align: left; font-weight: 500; color: var(--color-fg-muted); padding: 4px 6px; border-bottom: 1px solid var(--color-border-line); white-space: nowrap; z-index: 1; }
+.sh-table th button { background: none; border: 0; padding: 0; cursor: pointer; color: inherit; font-weight: inherit; }
+.sh-table td { padding: 5px 6px; border-bottom: 1px solid var(--color-border-line); vertical-align: top; }
+.sh-table tbody tr { cursor: pointer; }
+.sh-table tbody tr:hover td { background: var(--color-bg); }
+.sh-table tbody tr.sh-sel td { background: var(--cds-chart-reference-tint); }
+.sh-table td:first-child { box-shadow: inset 4px 0 0 var(--sh-row, transparent); padding-left: 10px; }
+.sh-full .sh-table td { white-space: nowrap; }
+.sh-full .sh-table td.wrap { white-space: normal; min-width: 14rem; }
+.sh-full .sh-scroll { max-height: max(30rem, var(--sh-screen)); }
+.sh-full .sh-table tbody tr { cursor: default; }
+.sh-empty { padding: var(--cds-pad-lg); text-align: center; color: var(--color-fg-muted); }
+.sh-failed { display: flex; align-items: center; justify-content: center; gap: 6px; color: var(--color-fg-muted); font-size: var(--cds-font-size-caption); height: 100%; min-height: 6rem; }
+.sh-failed::before { content: ""; width: .375rem; height: .375rem; border-radius: 50%; background: var(--color-bad); }
+[data-dash-source-state=refreshing] { opacity: .5; transition: opacity var(--cds-dur-slow); }
+[data-dash-source-state=empty] { color: transparent; }
+
+/* Phone and narrow */
+@media (max-width: 1000px) {
+  .sh { --sh-screen: auto; }
+  .sh-body { grid-template-columns: minmax(0, 1fr); height: auto; }
+  .sh-map { flex: none; height: 65vh; min-height: 22rem; }
+  .sh-tablecard { flex: none; }
+  .sh-tablecard .sh-scroll { max-height: 28rem; }
+  .sh-full .sh-scroll { max-height: 70vh; }
+}
+@media (max-width: 640px) {
+  .sh-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .sh-filtertoggle { display: inline-flex; background: var(--color-panel); border: 1px solid var(--color-border-line); border-radius: var(--cds-radius); padding: 6px 12px; cursor: pointer; }
+  .sh-filterbar { display: none; width: 100%; }
+  .sh-filterbar.sh-open { display: flex; }
+  .sh-field, .sh-select, .sh-dropbtn { width: 100%; }
+  .sh-typewrap { flex-wrap: wrap; }
+}
+</style>
+
+<div class="sh" id="sapporo">
+  <header class="sh-top">
+    <div class="sh-titleblock">
+      <h1 id="title">Sapporo Higher Education</h1>
+      <p class="sh-take" id="takeaway"><b class="dash-skeleton" data-source="kpi" data-field="gaps" data-where="scope=active" id="tk-gaps">—</b> of <b data-source="kpi" data-field="campuses" data-where="scope=active" id="tk-camp">—</b> campuses have no known ministry presence yet, and <b data-source="kpi" data-field="not_assessed" data-where="scope=active" id="tk-na">—</b> still need a first assessment.</p>
+    </div>
+    <button class="sh-filtertoggle" id="filtertoggle" aria-expanded="false" aria-controls="filters">Filters</button>
+    <div class="sh-filterbar" id="filters">
+      <label class="sh-field"><span>School type</span>
+        <select class="sh-select" id="f-type" aria-label="School type" data-source="schools"></select></label>
+      <div class="sh-field"><span>Ward / city</span>
+        <button class="sh-dropbtn" id="f-place-btn" aria-haspopup="true" aria-expanded="false">All 15 areas</button>
+        <div class="sh-drop" id="f-place-drop" hidden></div></div>
+      <label class="sh-field"><span>Organization</span>
+        <select class="sh-select" id="f-org" aria-label="Organization"></select></label>
+      <label class="sh-field"><span>Presence tier</span>
+        <select class="sh-select" id="f-tier" aria-label="Presence tier"></select></label>
+      <label class="sh-check"><input type="checkbox" id="f-closed"> Show closed &amp; closing</label>
+      <button class="sh-reset" id="f-reset">Reset</button>
+    </div>
+  </header>
+
+  <div class="sh-tabs" role="tablist">
+    <button class="sh-tab" role="tab" id="tab-overview" aria-selected="true" data-page="overview">Overview</button>
+    <button class="sh-tab" role="tab" id="tab-schools" aria-selected="false" data-page="schools">Schools · full data</button>
+    <button class="sh-tab" role="tab" id="tab-churches" aria-selected="false" data-page="churches">Churches · full data</button>
+  </div>
+
+  <section id="overview" class="sh-page">
+    <div class="sh-body">
+      <div class="sh-left">
+        <div class="sh-cards" id="cards">
+          <div class="sh-card" id="card-campuses">
+            <span class="sh-k">Campuses</span>
+            <span class="sh-v dash-skeleton" id="kv-campuses" data-source="kpi" data-field="campuses" data-where="scope=active">—</span>
+            <span class="sh-s" id="ks-campuses"><span id="ks-hidden" data-source="kpi" data-field="closed_closing" data-where="scope=active">—</span> closed or closing <span id="ks-hidden-word">hidden</span></span>
+          </div>
+          <div class="sh-card sh-muted" id="card-church">
+            <span class="sh-k">Church / campus ratio</span>
+            <span class="sh-v">Not yet available</span>
+            <span class="sh-s">Church data will be added later</span>
+          </div>
+          <button class="sh-card" id="card-gaps" aria-pressed="false" title="Show these campuses on the map and in the table">
+            <span class="sh-k"><span class="sh-dot" style="background: var(--sh-none)"></span>Not assessed or no presence</span>
+            <span class="sh-v dash-skeleton"><span id="kv-gaps" data-source="kpi" data-field="gaps" data-where="scope=active">—</span> <small>/ <span id="kv-gaps-of" data-source="kpi" data-field="campuses" data-where="scope=active">—</span></small></span>
+            <span class="sh-s"><span id="kv-ne" data-source="kpi" data-field="not_established" data-where="scope=active">—</span> not established · <span id="kv-na" data-source="kpi" data-field="not_assessed" data-where="scope=active">—</span> not assessed</span>
+            <span class="sh-hint" id="gaps-hint">Show gaps on map</span>
+          </button>
+          <div class="sh-card" id="card-ongoing">
+            <span class="sh-k"><span class="sh-dot" style="background: var(--sh-ongoing)"></span>Ongoing presence</span>
+            <span class="sh-v dash-skeleton"><span id="kv-ongoing" data-source="kpi" data-field="ongoing" data-where="scope=active">—</span> <small>campuses</small></span>
+            <span class="sh-s">Regular Bible study or recurring event</span>
+          </div>
+        </div>
+
+        <div class="sh-panel sh-map" id="map" data-source="schools wards subway jr water">
+          <svg id="map-svg" role="img" aria-label="Map of campuses colored by ministry presence tier"></svg>
+          <div class="sh-mapctl">
+            <button id="zoom-in" aria-label="Zoom in">+</button>
+            <button id="zoom-out" aria-label="Zoom out">−</button>
+            <button id="zoom-reset" aria-label="Reset map view" style="font-size: .8rem">⤢</button>
+          </div>
+          <svg class="sh-north" width="28" height="40" viewBox="0 0 28 40" aria-label="North arrow"><path d="M14 2 L22 24 L14 19 L6 24 Z" style="fill: currentColor"></path><text x="14" y="37" text-anchor="middle" style="fill: currentColor; font-size: 11px; font-weight: 500">N</text></svg>
+          <div class="sh-legend" id="legend"></div>
+          <div class="sh-credit">出典：国土数値情報（国土交通省）· © OpenStreetMap contributors</div>
+          <div class="sh-pop" id="pop" hidden></div>
+        </div>
+      </div>
+
+      <div class="sh-right">
+        <div class="sh-panel" id="types">
+          <h2>School types</h2>
+          <p class="sh-note" id="types-note">Share of campuses under the current filters. Click a type to filter.</p>
+          <div class="sh-typewrap">
+            <div class="sh-donut dash-skeleton" id="donut" data-source="schools"></div>
+            <div class="sh-typelegend" id="typelegend" data-source="schools"></div>
+          </div>
+        </div>
+        <div class="sh-panel sh-tablecard" id="school-table">
+          <div class="sh-tablehead">
+            <h2>School data table</h2>
+            <span class="sh-note" id="table-count"></span>
+          </div>
+          <p class="sh-note">Click a school to find it on the map.</p>
+          <div class="sh-scroll">
+            <table class="sh-table" id="tbl" data-source="schools" data-row-key="ObjectID">
+              <thead><tr>
+                <th data-field="school_name"><button data-sort="school_name">学校名</button></th>
+                <th data-field="school_type"><button data-sort="school_type">種別</button></th>
+                <th data-source="places" data-field="place"><button data-sort="place">区・市</button></th>
+                <th data-field="ministry_presence_tier"><button data-sort="ministry_presence_tier">Tier</button></th>
+              </tr></thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="schools" class="sh-page sh-full" hidden>
+    <div class="sh-panel">
+      <div class="sh-tablehead">
+        <h2>Schools · full data</h2>
+        <input class="sh-search" id="full-search" type="search" placeholder="Search names, addresses…" aria-label="Search schools">
+      </div>
+      <p class="sh-note" id="full-count">The filters above apply here too.</p>
+      <div class="sh-scroll">
+        <table class="sh-table" id="fulltbl" data-source="schools" data-row-key="ObjectID">
+          <thead><tr id="fullhead"></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <section id="churches" class="sh-page" hidden>
+    <div class="sh-panel sh-empty">
+      <h2>Churches · full data</h2>
+      <p class="sh-note">The church database is being cleaned up. It will appear here once it is added.</p>
+    </div>
+  </section>
+</div>
+
+<script>
+// ---- Shared reference lists (fixed choices, not data) ----
+window.SH = window.SH || {};
+SH.TIERS = ['Ongoing', 'Occasional', 'Not yet established', 'Not yet assessed'];
+SH.TIER_COLOR = { 'Ongoing': 'var(--sh-ongoing)', 'Occasional': 'var(--sh-occasional)', 'Not yet established': 'var(--sh-none)', 'Not yet assessed': 'var(--sh-unassessed)' };
+SH.TIER_TEXT = { 'Ongoing': '#14302A', 'Occasional': '#0E2A33' }; // dark count text on the two light tier colors
+SH.TYPES = ['大学', '短期大学', '専修学校'];
+SH.TYPE_COLOR = { '大学': 'var(--sh-type-1)', '短期大学': 'var(--sh-type-2)', '専修学校': 'var(--sh-type-3)' };
+SH.PLACES_CITY = ['中央区', '北区', '東区', '白石区', '豊平区', '南区', '西区', '厚別区', '手稲区', '清田区'];
+SH.PLACES_AREA = ['江別市', '恵庭市', '北広島市', '石狩市', '当別町'];
+SH.ORGS = ['IMB', 'CCC', 'OMF', 'KGK', 'TEAM', 'MSN', 'JFWBM', 'CFNJ', 'Navigators', 'NPL', 'Pioneers', 'SEND', 'YYAM'];
+SH.INACTIVE = ['Closed', 'Closing'];
+SH.SUBWAY_COLOR = { '札幌市営地下鉄南北線': '#65AF4A', '札幌市営地下鉄東西線': '#E3A453', '札幌市営地下鉄東豊線': '#6295D7' };
+SH.SUBWAY_SHORT = { '札幌市営地下鉄南北線': '南北線', '札幌市営地下鉄東西線': '東西線', '札幌市営地下鉄東豊線': '東豊線' };
+SH.placeOf = (s) => (s.Ward && s.Ward !== 'N/A') ? s.Ward : s.MetroArea;
+SH.orgsOf = (s) => String(s.organizations || '').split(/[,、，]/).map((x) => x.trim()).filter(Boolean);
+SH.tierOf = (s) => SH.TIERS.includes(s.ministry_presence_tier) ? s.ministry_presence_tier : 'Not yet assessed';
+SH.params = () => {
+  const p = dash.params() || {};
+  return { type: p.type || null, places: Array.isArray(p.places) ? p.places : [], org: p.org || null, tier: p.tier || null, closed: !!p.closed };
+};
+SH.filter = (rows) => {
+  const p = SH.params();
+  return rows.filter((s) => {
+    if (!p.closed && SH.INACTIVE.includes(s.school_status)) return false;
+    if (p.type && s.school_type !== p.type) return false;
+    if (p.places.length && !p.places.includes(SH.placeOf(s))) return false;
+    if (p.org && !SH.orgsOf(s).includes(p.org)) return false;
+    if (p.tier === 'gaps' && !['Not yet established', 'Not yet assessed'].includes(SH.tierOf(s))) return false;
+    if (p.tier && p.tier !== 'gaps' && SH.tierOf(s) !== p.tier) return false;
+    return true;
+  });
+};
+SH.page = 'overview';
+SH.selected = null; // ObjectID of the school shown in the popup
+</script>
+
+<script>
+dash.calc('kpi', {
+  inputs: ['schools'],
+  title: 'Campus counts by presence',
+  description: 'Counts campuses per presence tier, once for active campuses only and once including closed and closing ones.',
+  fn: (schools) => ['active', 'all'].map((scope) => {
+    const rows = scope === 'all' ? schools : schools.filter((s) => s.school_status !== 'Closed' && s.school_status !== 'Closing');
+    const count = (tier) => rows.filter((s) => s.ministry_presence_tier === tier).length;
+    const gaps = count('Not yet established') + count('Not yet assessed');
+    return {
+      scope,
+      campuses: rows.length,
+      ongoing: count('Ongoing'),
+      occasional: count('Occasional'),
+      not_established: count('Not yet established'),
+      not_assessed: count('Not yet assessed'),
+      gaps,
+      closed_closing: schools.filter((s) => s.school_status === 'Closed' || s.school_status === 'Closing').length,
+    };
+  }),
+});
+dash.calc('places', {
+  inputs: ['schools'],
+  title: 'Ward or city per campus',
+  description: 'The Sapporo ward, or the city or town name for campuses outside Sapporo (where Ward is N/A).',
+  fn: (schools) => schools.map((s) => ({ ObjectID: s.ObjectID, place: (s.Ward && s.Ward !== 'N/A') ? s.Ward : s.MetroArea })),
+});
+</script>
+
+<script>
+// ---- Filters, tabs and fact cards ----
+(() => {
+  const $ = (id) => document.getElementById(id);
+  const fType = $('f-type'), fOrg = $('f-org'), fTier = $('f-tier'), fClosed = $('f-closed');
+  const placeBtn = $('f-place-btn'), placeDrop = $('f-place-drop');
+
+  fOrg.replaceChildren(new Option('All organizations', ''), ...SH.ORGS.map((o) => new Option(o, o)));
+  fTier.replaceChildren(new Option('All tiers', ''), new Option('No known presence (gaps)', 'gaps'), ...SH.TIERS.map((t) => new Option(t, t)));
+
+  fType.addEventListener('change', () => dash.setParams({ type: fType.value || null }));
+  fOrg.addEventListener('change', () => dash.setParams({ org: fOrg.value || null }));
+  fTier.addEventListener('change', () => dash.setParams({ tier: fTier.value || null }));
+  fClosed.addEventListener('change', () => dash.setParams({ closed: fClosed.checked }));
+  $('f-reset').addEventListener('click', () => { dash.resetParams(); dash.setParams({ type: null, places: [], org: null, tier: null, closed: false }); });
+
+  const toggle = $('filtertoggle');
+  toggle.addEventListener('click', () => {
+    const open = !$('filters').classList.contains('sh-open');
+    $('filters').classList.toggle('sh-open', open);
+    toggle.setAttribute('aria-expanded', String(open));
+  });
+
+  // Ward / city multi-select
+  placeBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    placeDrop.hidden = !placeDrop.hidden;
+    placeBtn.setAttribute('aria-expanded', String(!placeDrop.hidden));
+  });
+  document.addEventListener('click', (e) => {
+    if (!placeDrop.hidden && !placeDrop.contains(e.target) && e.target !== placeBtn) { placeDrop.hidden = true; placeBtn.setAttribute('aria-expanded', 'false'); }
+  });
+  placeDrop.addEventListener('change', () => {
+    const picked = [...placeDrop.querySelectorAll('input:checked')].map((i) => i.value);
+    dash.setParams({ places: picked });
+  });
+  const buildPlaceDrop = (rows) => {
+    const counts = d3.rollup(rows, (v) => v.length, SH.placeOf);
+    const sel = SH.params().places;
+    const group = (title, list) => {
+      const h = document.createElement('h4'); h.textContent = title;
+      const items = list.map((p) => {
+        const l = document.createElement('label');
+        const i = document.createElement('input'); i.type = 'checkbox'; i.value = p; i.checked = sel.includes(p); i.id = 'place-' + p;
+        const t = document.createElement('span'); t.textContent = p;
+        const n = document.createElement('small'); n.textContent = d3.format(',')(counts.get(p) || 0);
+        l.append(i, t, n); return l;
+      });
+      return [h, ...items];
+    };
+    const actions = document.createElement('div'); actions.className = 'sh-drop-actions';
+    const city = document.createElement('button'); city.className = 'sh-link'; city.textContent = 'Sapporo City only';
+    city.addEventListener('click', () => dash.setParams({ places: SH.PLACES_CITY.slice() }));
+    const clear = document.createElement('button'); clear.className = 'sh-link'; clear.textContent = 'Clear';
+    clear.addEventListener('click', () => dash.setParams({ places: [] }));
+    actions.append(city, clear);
+    placeDrop.replaceChildren(...group('札幌市', SH.PLACES_CITY), ...group('近郊', SH.PLACES_AREA), actions);
+    placeBtn.textContent = !sel.length ? 'All 15 areas' : sel.length === 1 ? sel[0] : sel.length + ' areas';
+  };
+
+  // Gaps card
+  $('card-gaps').addEventListener('click', () => {
+    const on = SH.params().tier === 'gaps';
+    dash.setParams({ tier: on ? null : 'gaps' });
+  });
+
+  // Tabs
+  const pages = ['overview', 'schools', 'churches'];
+  const show = (page) => {
+    if (!pages.includes(page)) return;
+    SH.page = page;
+    pages.forEach((p) => { $(p).hidden = p !== page; $('tab-' + p).setAttribute('aria-selected', String(p === page)); });
+    dash.setLink(page);
+    if (SH.redraw) SH.redraw();
+  };
+  document.querySelectorAll('.sh-tab').forEach((b) => b.addEventListener('click', () => show(b.dataset.page)));
+  const named = location.hash.slice(1);
+  if (pages.includes(named)) show(named);
+
+  const fmt = d3.format(',');
+  dash.onData(() => {
+    const d = dash.data('schools');
+    const k = dash.data('kpi');
+    const p = SH.params();
+    const rows = d.status === 'ok' ? d.data : [];
+
+    // Filter controls reflect the current params
+    const types = SH.TYPES.filter((t) => rows.some((s) => s.school_type === t));
+    fType.replaceChildren(new Option('All types', ''), ...types.map((t) => new Option(t, t)));
+    fType.value = p.type || '';
+    fOrg.value = p.org || '';
+    fTier.value = p.tier || '';
+    fClosed.checked = p.closed;
+    buildPlaceDrop(rows.filter((s) => p.closed || !SH.INACTIVE.includes(s.school_status)));
+    const active = [p.type, p.places.length, p.org, p.tier, p.closed].filter(Boolean).length;
+    $('filtertoggle').textContent = active ? `Filters (${active})` : 'Filters';
+
+    // Fact cards: whole study area; the scope follows the closed/closing switch
+    const scope = p.closed ? 'all' : 'active';
+    document.querySelectorAll('[data-source="kpi"]').forEach((el) => el.setAttribute('data-where', 'scope=' + scope));
+    const kr = k.status === 'ok' && Array.isArray(k.data) ? k.data.find((r) => r.scope === scope) : null;
+    const put = (id, v) => { const el = $(id); el.textContent = kr ? fmt(v) : '—'; };
+    if (kr) {
+      put('kv-campuses', kr.campuses); put('kv-gaps', kr.gaps); put('kv-gaps-of', kr.campuses);
+      put('kv-ne', kr.not_established); put('kv-na', kr.not_assessed); put('kv-ongoing', kr.ongoing);
+      put('tk-gaps', kr.gaps); put('tk-camp', kr.campuses); put('tk-na', kr.not_assessed);
+      put('ks-hidden', kr.closed_closing);
+    } else {
+      ['kv-campuses', 'kv-gaps', 'kv-gaps-of', 'kv-ne', 'kv-na', 'kv-ongoing', 'tk-gaps', 'tk-camp', 'tk-na', 'ks-hidden'].forEach((id) => put(id, 0));
+    }
+    $('ks-hidden-word').textContent = p.closed ? 'included' : 'hidden';
+    document.querySelectorAll('#sapporo .sh-v, #tk-gaps').forEach((el) => el.classList.toggle('dash-skeleton', !kr && k.status === 'loading'));
+    const gapsOn = p.tier === 'gaps';
+    $('card-gaps').setAttribute('aria-pressed', String(gapsOn));
+    $('gaps-hint').textContent = gapsOn ? 'Showing gaps · click to clear' : 'Show gaps on map';
+  });
+})();
+</script>
+
+<script>
+// ---- Map: own Web Mercator projection (no basemap tiles in this page), zoom, clusters, popup ----
+(() => {
+  const box = document.getElementById('map');
+  const svg = d3.select('#map-svg');
+  const pop = document.getElementById('pop');
+  const legend = document.getElementById('legend');
+  const R = Math.PI / 180;
+  const mercY = (lat) => Math.log(Math.tan(Math.PI / 4 + (lat * R) / 2));
+  let base = null;           // {k, x0, y0} fit of lon/lat to pixels at zoom 1
+  let size = { w: 0, h: 0 };
+  let transform = d3.zoomIdentity;
+  let points = [];
+  let zoom = null;
+  let built = false;
+  let builtKey = '';
+  const MAXK = 40;                                   // about neighborhood level
+  const STUDY = [[141.20, 42.86], [141.70, 43.26]];   // pan limit: the study area (lon, lat)
+
+  const projectBase = (lon, lat) => [(lon * R - base.x0) * base.k, (base.y0 - mercY(lat)) * base.k];
+  const toScreen = (xy) => transform.apply(xy);
+
+  const fit = (rows, w, h) => {
+    const lons = rows.map((s) => +s.X), lats = rows.map((s) => +s.Y);
+    const minX = d3.min(lons) * R, maxX = d3.max(lons) * R;
+    const minY = mercY(d3.min(lats)), maxY = mercY(d3.max(lats));
+    const pad = 36;
+    const k = Math.min((w - pad * 2) / (maxX - minX), (h - pad * 2) / (maxY - minY));
+    const cx = (minX + maxX) / 2, cy = (minY + maxY) / 2;
+    return { k, x0: cx - (w / 2) / k, y0: cy + (h / 2) / k };
+  };
+
+  const geomOf = (r) => { const g = r.geom != null ? r.geom : r.geometry; if (!g) return null; return typeof g === 'string' ? JSON.parse(g) : g; };
+  const pathOf = (geom) => {
+    if (!geom) return '';
+    const polys = geom.type === 'Polygon' ? [geom.coordinates] : geom.coordinates;
+    return polys.map((poly) => poly.map((ring) => 'M' + ring.map(([x, y]) => projectBase(x, y).map((v) => v.toFixed(1)).join(',')).join('L') + 'Z').join('')).join('');
+  };
+  // Shoelace area and centroid (this page's d3 has no polygon helpers)
+  const ringArea = (r) => { let s = 0; for (let i = 0, j = r.length - 1; i < r.length; j = i++) s += r[j][0] * r[i][1] - r[i][0] * r[j][1]; return s / 2; };
+  const ringCentroid = (r) => {
+    let x = 0, y = 0, s = 0;
+    for (let i = 0, j = r.length - 1; i < r.length; j = i++) { const f = r[j][0] * r[i][1] - r[i][0] * r[j][1]; s += f; x += (r[j][0] + r[i][0]) * f; y += (r[j][1] + r[i][1]) * f; }
+    return s ? [x / (3 * s), y / (3 * s)] : r[0];
+  };
+  const linePathOf = (geom) => {
+    if (!geom) return '';
+    const lines = geom.type === 'LineString' ? [geom.coordinates] : geom.coordinates;
+    return lines.map((l) => 'M' + l.map(([x, y]) => projectBase(x, y).map((v) => v.toFixed(1)).join(',')).join('L')).join('');
+  };
+  const labelPoint = (geom) => {
+    if (!geom) return null;
+    const polys = geom.type === 'Polygon' ? [geom.coordinates] : geom.coordinates;
+    let best = null, bestA = -1;
+    polys.forEach((poly) => {
+      const ring = poly[0].map(([x, y]) => projectBase(x, y));
+      const a = Math.abs(ringArea(ring));
+      if (a > bestA) { bestA = a; best = ring; }
+    });
+    return best ? ringCentroid(best) : null;
+  };
+
+  const tierCounts = (rows) => SH.TIERS.map((t) => [t, rows.filter((s) => SH.tierOf(s) === t).length]);
+
+  const showPopup = (members) => {
+    const pt = members[0];
+    pop.replaceChildren();
+    const x = document.createElement('button'); x.className = 'sh-x'; x.setAttribute('aria-label', 'Close'); x.textContent = '×';
+    x.addEventListener('click', () => { SH.selected = null; pop.hidden = true; SH.redraw(); });
+    pop.append(x);
+    if (members.length > 1) {
+      const h = document.createElement('h3'); h.textContent = members.length + ' campuses here';
+      const ul = document.createElement('ul');
+      members.forEach((m) => {
+        const li = document.createElement('li'); const b = document.createElement('button');
+        const dot = document.createElement('span'); dot.className = 'sh-dot'; dot.style.background = SH.TIER_COLOR[SH.tierOf(m.s)];
+        const t = document.createElement('span'); t.textContent = m.s.school_name;
+        b.append(dot, t); b.addEventListener('click', () => { SH.selected = m.s.ObjectID; showPopup([m]); SH.redraw(); });
+        li.append(b); ul.append(li);
+      });
+      pop.append(h, ul);
+    } else {
+      const s = pt.s;
+      const h = document.createElement('h3'); h.textContent = s.school_name;
+      const dl = document.createElement('dl');
+      const row = (k, v, node) => {
+        const dt = document.createElement('dt'); dt.textContent = k;
+        const dd = document.createElement('dd'); if (node) dd.append(node); else dd.textContent = v || '—';
+        dl.append(dt, dd);
+      };
+      const tier = document.createElement('span');
+      const dot = document.createElement('span'); dot.className = 'sh-dot'; dot.style.background = SH.TIER_COLOR[SH.tierOf(s)];
+      tier.append(dot, document.createTextNode(SH.tierOf(s)));
+      row('Presence', '', tier);
+      row('Organizations', SH.orgsOf(s).join(', ') || 'None reported');
+      if (s.confidence) row('Confidence', s.confidence);
+      if (s.ministry_last_updated) row('Updated', s.ministry_last_updated);
+      row('Type', s.school_type);
+      const campus = s.school_notes && s.school_notes.includes('キャンパス') ? s.school_notes : '';
+      if (campus) row('Campus', campus);
+      row('Area', SH.placeOf(s));
+      row('Est. students', s.student_capacity_est ? d3.format(',')(+s.student_capacity_est) : 'Unknown');
+      if (s.school_status && s.school_status !== 'Active') row('Status', s.school_status);
+      if (/^https?:\/\//.test(s.website || '')) {
+        const a = document.createElement('a'); a.href = s.website; a.target = '_blank'; a.rel = 'noopener'; a.textContent = 'Website ↗';
+        row('Link', '', a);
+      }
+      pop.append(h, dl);
+    }
+    pop.hidden = false;
+    pop._anchor = pt.base;
+    placePopup();
+  };
+  const placePopup = () => {
+    if (pop.hidden || !pop._anchor) return;
+    const [x, y] = toScreen(pop._anchor);
+    const pw = pop.offsetWidth, ph = pop.offsetHeight;
+    let left = x + 14, top = y - ph / 2;
+    if (left + pw > size.w - 8) left = x - pw - 14;
+    left = Math.max(8, Math.min(left, size.w - pw - 8));
+    top = Math.max(8, Math.min(top, size.h - ph - 8));
+    pop.style.left = left + 'px'; pop.style.top = top + 'px';
+  };
+
+  const drawPoints = () => {
+    const g = svg.select('g.sh-pts');
+    const sp = points.map((p) => ({ ...p, xy: toScreen(p.base) }));
+    // Greedy screen-space clustering
+    const RAD = 13, used = new Set(), groups = [];
+    const order = sp.slice().sort((a, b) => a.xy[1] - b.xy[1] || a.xy[0] - b.xy[0]);
+    const tree = d3.quadtree().x((d) => d.xy[0]).y((d) => d.xy[1]).addAll(order);
+    order.forEach((p) => {
+      if (used.has(p)) return;
+      const members = [];
+      tree.visit((node, x0, y0, x1, y1) => {
+        if (!node.length) {
+          let n = node;
+          do { const d = n.data; if (!used.has(d) && Math.hypot(d.xy[0] - p.xy[0], d.xy[1] - p.xy[1]) <= RAD) { used.add(d); members.push(d); } } while ((n = n.next));
+        }
+        return x0 > p.xy[0] + RAD || x1 < p.xy[0] - RAD || y0 > p.xy[1] + RAD || y1 < p.xy[1] - RAD;
+      });
+      const cx = d3.mean(members, (m) => m.xy[0]), cy = d3.mean(members, (m) => m.xy[1]);
+      groups.push({ members, xy: [cx, cy] });
+    });
+    const sel = g.selectAll('g.sh-node').data(groups).join('g').attr('class', 'sh-node').attr('transform', (d) => `translate(${d.xy[0]},${d.xy[1]})`);
+    sel.selectAll('*').remove();
+    sel.each(function (d) {
+      const n = d3.select(this);
+      const tiers = new Set(d.members.map((m) => SH.tierOf(m.s)));
+      const color = tiers.size === 1 ? SH.TIER_COLOR[[...tiers][0]] : 'var(--color-fg-muted)';
+      const isSel = d.members.some((m) => m.s.ObjectID === SH.selected);
+      if (d.members.length === 1) {
+        n.append('circle').attr('class', 'sh-pt' + (isSel ? ' sh-sel' : '')).attr('r', isSel ? 7.5 : 6).style('fill', color);
+      } else {
+        n.attr('class', 'sh-node sh-cl');
+        n.append('circle').attr('class', 'sh-pt' + (isSel ? ' sh-sel' : '')).attr('r', 9 + Math.min(9, Math.sqrt(d.members.length) * 2)).style('fill', color);
+        const tt = tiers.size === 1 ? SH.TIER_TEXT[[...tiers][0]] : null;
+        n.append('text').text(d.members.length).style('fill', tt || null);
+      }
+      n.style('cursor', 'pointer').on('click', (event) => {
+        event.stopPropagation();
+        if (d.members.length === 1) { SH.selected = d.members[0].s.ObjectID; showPopup(d.members); SH.redraw(); return; }
+        const xs = d.members.map((m) => m.base[0]), ys = d.members.map((m) => m.base[1]);
+        const spread = Math.max(d3.max(xs) - d3.min(xs), d3.max(ys) - d3.min(ys)) * transform.k;
+        if (spread < 4 || transform.k >= MAXK * 0.9) { SH.selected = null; showPopup(d.members); SH.redraw(); return; }
+        const cx = (d3.max(xs) + d3.min(xs)) / 2, cy = (d3.max(ys) + d3.min(ys)) / 2;
+        const k = Math.min(MAXK, transform.k * 2.5, (Math.min(size.w, size.h) * 0.5) / Math.max(1e-6, spread / transform.k));
+        svg.transition().duration(450).call(zoom.transform, d3.zoomIdentity.translate(size.w / 2, size.h / 2).scale(Math.min(MAXK, Math.max(k, transform.k * 1.5))).translate(-cx, -cy));
+      });
+    });
+    // Ward labels in screen space
+    svg.select('g.sh-labels').selectAll('text').attr('x', (d) => toScreen(d.c)[0]).attr('y', (d) => toScreen(d.c)[1])
+      .style('display', (d) => { const [x, y] = toScreen(d.c); return x < 20 || y < 20 || x > size.w - 20 || y > size.h - 20 ? 'none' : null; });
+    placePopup();
+  };
+
+  SH.focusSchool = (id) => {
+    const p = points.find((q) => q.s.ObjectID === id);
+    if (!p || !zoom) return;
+    SH.selected = id;
+    const k = Math.max(transform.k, 14);
+    svg.transition().duration(500).call(zoom.transform, d3.zoomIdentity.translate(size.w / 2, size.h / 2).scale(k).translate(-p.base[0], -p.base[1]))
+      .on('end', () => showPopup([p]));
+    SH.redraw();
+  };
+
+  const render = () => {
+    if (SH.page !== 'overview') return;
+    const d = dash.data('schools'), w = dash.data('wards');
+    if (d.status !== 'ok' || w.status !== 'ok') {
+      if (d.status === 'error' || w.status === 'error') { svg.selectAll('*').remove(); legend.replaceChildren(); svg.append('text').attr('x', '50%').attr('y', '50%').attr('text-anchor', 'middle').style('fill', 'var(--color-fg-muted)').style('font-size', '12px').text('Failed to load'); }
+      return;
+    }
+    const sw = dash.data('subway'), jd = dash.data('jr'), wd = dash.data('water');
+    if (sw.status === 'loading' || jd.status === 'loading' || wd.status === 'loading') return;
+    const water = wd.status === 'ok' && Array.isArray(wd.data) ? wd.data : [];
+    const subway = sw.status === 'ok' && Array.isArray(sw.data) ? sw.data : [];
+    const jr = jd.status === 'ok' && Array.isArray(jd.data) ? jd.data : [];
+    const W = box.clientWidth, H = box.clientHeight;
+    if (!W || !H) return;
+    const all = d.data.filter((s) => s.X && s.Y);
+    const key = `${W}x${H}:${subway.length}:${jr.length}:${water.length}`;
+    if (!built || key !== builtKey) {
+      builtKey = key;
+      size = { w: W, h: H };
+      base = fit(all, W, H);
+      svg.attr('viewBox', `0 0 ${W} ${H}`).selectAll('*').remove();
+      const gMap = svg.append('g').attr('class', 'sh-zoomed');
+      gMap.append('g').selectAll('path').data(w.data).join('path').attr('class', 'sh-ward').attr('d', (r) => pathOf(geomOf(r)));
+      gMap.append('g').selectAll('path').data(water).join('path').attr('class', 'sh-water').attr('d', (r) => pathOf(geomOf(r)));
+      const gJr = gMap.append('g');
+      gJr.selectAll('path.sh-jr').data(jr).join('path').attr('class', 'sh-jr').style('stroke', (r) => r.color || '#3EAA43').attr('d', (r) => linePathOf(geomOf(r)));
+      gJr.selectAll('path.sh-jr-fill').data(jr).join('path').attr('class', 'sh-jr-fill').attr('d', (r) => linePathOf(geomOf(r)));
+      gJr.selectAll('path.sh-jr-dash').data(jr).join('path').attr('class', 'sh-jr-dash').style('stroke', (r) => r.color || '#3EAA43').attr('d', (r) => linePathOf(geomOf(r)));
+      gMap.append('g').selectAll('path').data(subway).join('path').attr('class', 'sh-subway')
+        .style('stroke', (r) => r.color || SH.SUBWAY_COLOR[r.line] || 'var(--color-fg-muted)').attr('d', (r) => linePathOf(geomOf(r)));
+      svg.append('g').attr('class', 'sh-labels').selectAll('text')
+        .data(w.data.map((r) => ({ place: r.place, c: labelPoint(geomOf(r)) })).filter((r) => r.c))
+        .join('text').attr('class', 'sh-wardlabel').text((r) => r.place);
+      svg.append('g').attr('class', 'sh-pts');
+      const c0 = projectBase(STUDY[0][0], STUDY[1][1]), c1 = projectBase(STUDY[1][0], STUDY[0][1]);
+      const extent = [[Math.min(0, c0[0]), Math.min(0, c0[1])], [Math.max(W, c1[0]), Math.max(H, c1[1])]];
+      zoom = d3.zoom().scaleExtent([1, MAXK]).translateExtent(extent).extent([[0, 0], [W, H]]).on('zoom', (event) => {
+        transform = event.transform;
+        gMap.attr('transform', transform);
+        drawPoints();
+      });
+      svg.call(zoom).on('dblclick.zoom', null);
+      svg.on('click', () => { if (!pop.hidden) { SH.selected = null; pop.hidden = true; SH.redraw(); } });
+      transform = d3.zoomIdentity;
+      built = true;
+    }
+    const p = SH.params();
+    svg.selectAll('path.sh-ward').classed('sh-on', (r) => p.places.includes(r.place));
+    const rows = SH.filter(d.data).filter((s) => s.X && s.Y);
+    points = rows.map((s) => ({ s, base: projectBase(+s.X, +s.Y) }));
+    if (SH.selected && !rows.some((s) => s.ObjectID === SH.selected)) { SH.selected = null; pop.hidden = true; }
+    drawPoints();
+    // Legend: tier counts for what the map shows
+    legend.replaceChildren(...tierCounts(rows).map(([t, n]) => {
+      const div = document.createElement('div');
+      const dot = document.createElement('span'); dot.className = 'sh-dot'; dot.style.background = SH.TIER_COLOR[t];
+      const name = document.createElement('span'); name.textContent = t;
+      const c = document.createElement('span'); c.className = 'n'; c.textContent = d3.format(',')(n);
+      div.append(dot, name, c); return div;
+    }), ...(subway.length ? Object.keys(SH.SUBWAY_COLOR).map((line, i) => {
+      const div = document.createElement('div'); if (i === 0) div.className = 'sh-legsep';
+      const sw2 = document.createElement('span'); sw2.className = 'sh-line'; sw2.style.background = SH.SUBWAY_COLOR[line];
+      const name = document.createElement('span'); name.textContent = SH.SUBWAY_SHORT[line];
+      div.append(sw2, name); return div;
+    }) : []), ...(jr.length ? [(() => {
+      const div = document.createElement('div'); if (!subway.length) div.className = 'sh-legsep';
+      const k = document.createElement('span'); k.className = 'sh-line sh-jrkey'; k.style.setProperty('--sh-jrc', jr[0].color || '#3EAA43');
+      const name = document.createElement('span'); name.textContent = 'JR';
+      div.append(k, name); return div;
+    })()] : []));
+  };
+
+  document.getElementById('zoom-in').addEventListener('click', () => zoom && svg.transition().duration(250).call(zoom.scaleBy, 1.8));
+  document.getElementById('zoom-out').addEventListener('click', () => zoom && svg.transition().duration(250).call(zoom.scaleBy, 1 / 1.8));
+  document.getElementById('zoom-reset').addEventListener('click', () => zoom && svg.transition().duration(350).call(zoom.transform, d3.zoomIdentity));
+
+  SH.renderMap = render;
+  dash.onData(render);
+})();
+</script>
+
+<script>
+// ---- School-type donut ----
+(() => {
+  const el = document.getElementById('donut');
+  const leg = document.getElementById('typelegend');
+  const render = () => {
+    if (SH.page !== 'overview') return;
+    const d = dash.data('schools');
+    if (d.status !== 'ok') {
+      if (d.status === 'error') { el.classList.remove('dash-skeleton'); el.replaceChildren(); const f = document.createElement('div'); f.className = 'sh-failed'; f.textContent = 'Failed to load'; el.append(f); }
+      return;
+    }
+    el.classList.remove('dash-skeleton');
+    const p = SH.params();
+    // The donut ignores its own type filter so every type stays visible; the picked one is highlighted.
+    const saved = p.type;
+    const base = d.data.filter((s) => {
+      if (!p.closed && SH.INACTIVE.includes(s.school_status)) return false;
+      if (p.places.length && !p.places.includes(SH.placeOf(s))) return false;
+      if (p.org && !SH.orgsOf(s).includes(p.org)) return false;
+      if (p.tier === 'gaps' && !['Not yet established', 'Not yet assessed'].includes(SH.tierOf(s))) return false;
+      if (p.tier && p.tier !== 'gaps' && SH.tierOf(s) !== p.tier) return false;
+      return true;
+    });
+    const counts = SH.TYPES.map((t) => ({ type: t, n: base.filter((s) => s.school_type === t).length }));
+    const total = d3.sum(counts, (c) => c.n);
+    const size = 136, r = size / 2, inner = r * 0.58;
+    const svg = d3.create('svg').attr('viewBox', `${-r} ${-r} ${size} ${size}`).attr('width', '100%').attr('aria-label', 'School types');
+    const pie = d3.pie().sort(null).value((c) => c.n)(counts);
+    const arc = d3.arc().innerRadius(inner).outerRadius(r - 1).padAngle(total ? 0.012 : 0);
+    if (!total) {
+      svg.append('circle').attr('r', (r + inner) / 2).style('fill', 'none').style('stroke', 'var(--color-border-line)').style('stroke-width', r - inner);
+    }
+    svg.selectAll('path').data(pie.filter((a) => a.data.n > 0)).join('path')
+      .attr('d', arc).style('fill', (a) => SH.TYPE_COLOR[a.data.type])
+      .attr('class', (a) => (saved && saved !== a.data.type ? 'sh-dim' : null))
+      .on('click', (event, a) => dash.setParams({ type: saved === a.data.type ? null : a.data.type }))
+      .append('title').text((a) => `${a.data.type}: ${a.data.n}`);
+    svg.selectAll('text.seg').data(pie.filter((a) => a.endAngle - a.startAngle > 0.35)).join('text').attr('class', 'seg')
+      .attr('transform', (a) => `translate(${arc.centroid(a)})`).text((a) => d3.format(',')(a.data.n));
+    const shown = saved ? (counts.find((c) => c.type === saved) || { n: 0 }).n : total;
+    svg.append('text').attr('class', 'sh-center').attr('y', -6).text(d3.format(',')(shown));
+    svg.append('text').attr('class', 'sh-center2').attr('y', 13).text(saved ? saved : 'campuses');
+    el.replaceChildren(svg.node());
+    leg.replaceChildren(...counts.map((c) => {
+      const b = document.createElement('button');
+      b.setAttribute('aria-pressed', String(saved === c.type));
+      b.style.opacity = saved && saved !== c.type ? '.45' : '';
+      const dot = document.createElement('span'); dot.className = 'sh-dot'; dot.style.background = SH.TYPE_COLOR[c.type];
+      const name = document.createElement('span'); name.textContent = c.type;
+      const n = document.createElement('span'); n.textContent = d3.format(',')(c.n);
+      const pc = document.createElement('span'); pc.className = 'pc'; pc.textContent = total ? d3.format('.0%')(c.n / total) : '–';
+      b.append(dot, name, n, pc);
+      b.addEventListener('click', () => dash.setParams({ type: saved === c.type ? null : c.type }));
+      return b;
+    }));
+  };
+  SH.renderDonut = render;
+  dash.onData(render);
+})();
+</script>
+
+<script>
+// ---- Side table and full data table ----
+(() => {
+  const tb = document.querySelector('#tbl tbody');
+  const fullHead = document.getElementById('fullhead');
+  const fullBody = document.querySelector('#fulltbl tbody');
+  const search = document.getElementById('full-search');
+  let sortKey = 'school_name', sortDir = 1;
+  const val = (s, k) => (k === 'place' ? SH.placeOf(s) : k === 'ministry_presence_tier' ? SH.TIERS.indexOf(SH.tierOf(s)) : (s[k] || ''));
+
+  document.querySelectorAll('#tbl th button').forEach((b) => b.addEventListener('click', () => {
+    const k = b.dataset.sort; sortDir = sortKey === k ? -sortDir : 1; sortKey = k; renderSide();
+  }));
+  tb.addEventListener('click', (e) => {
+    const tr = e.target.closest('tr[data-key]');
+    if (tr && SH.focusSchool) SH.focusSchool(tr.dataset.key);
+  });
+
+  const renderSide = () => {
+    if (SH.page !== 'overview') return;
+    const d = dash.data('schools');
+    if (d.status !== 'ok') { tb.replaceChildren(); return; }
+    const rows = SH.filter(d.data).slice().sort((a, b) => {
+      const x = val(a, sortKey), y = val(b, sortKey);
+      return (typeof x === 'number' ? x - y : String(x).localeCompare(String(y), 'ja')) * sortDir;
+    });
+    document.querySelectorAll('#tbl th').forEach((th) => {
+      const k = th.querySelector('button').dataset.sort;
+      th.setAttribute('aria-sort', k === sortKey ? (sortDir > 0 ? 'ascending' : 'descending') : 'none');
+    });
+    document.getElementById('table-count').textContent = `${d3.format(',')(rows.length)} campuses`;
+    if (!rows.length) {
+      const tr = document.createElement('tr'); const td = document.createElement('td'); td.colSpan = 4; td.className = 'sh-empty'; td.textContent = 'No campuses match these filters.'; tr.append(td); tb.replaceChildren(tr); return;
+    }
+    tb.replaceChildren(...rows.map((s) => {
+      const tr = document.createElement('tr');
+      tr.dataset.key = s.ObjectID;
+      tr.style.setProperty('--sh-row', SH.TIER_COLOR[SH.tierOf(s)]);
+      if (s.ObjectID === SH.selected) tr.className = 'sh-sel';
+      [s.school_name, s.school_type, SH.placeOf(s), s.ministry_presence_tier].forEach((v) => { const td = document.createElement('td'); td.textContent = v || ''; tr.append(td); });
+      return tr;
+    }));
+  };
+
+  // Full table: every column the dashboard publishes, in the Sheet's order
+  const COLS = [
+    ['ObjectID', 'ID'], ['school_name', '学校名'], ['school_type', '種別'], ['place', '区・市'], ['area_tag', 'Area'],
+    ['school_status', 'Status'], ['ministry_presence_tier', 'Presence tier'], ['organizations', 'Organizations'], ['churches', 'Churches'],
+    ['confidence', 'Confidence'], ['ministry_last_updated', 'Last updated'], ['student_capacity_est', 'Est. students'],
+    ['school_notes', 'Notes'], ['school_address', '住所'], ['website', 'Website'], ['mext_school_code', 'MEXT code'], ['data_source', 'Source'],
+  ];
+  fullHead.replaceChildren(...COLS.map(([k, label]) => {
+    const th = document.createElement('th');
+    if (k === 'place') th.setAttribute('data-source', 'places');
+    th.setAttribute('data-field', k); th.textContent = label; return th;
+  }));
+  search.addEventListener('input', () => renderFull());
+  const renderFull = () => {
+    if (SH.page !== 'schools') return;
+    const d = dash.data('schools');
+    if (d.status !== 'ok') { fullBody.replaceChildren(); return; }
+    const q = search.value.trim().toLowerCase();
+    const rows = SH.filter(d.data).filter((s) => !q || COLS.some(([k]) => String(k === 'place' ? SH.placeOf(s) : s[k] || '').toLowerCase().includes(q)));
+    document.getElementById('full-count').textContent = `${d3.format(',')(rows.length)} campuses. The filters above apply here too.`;
+    fullBody.replaceChildren(...rows.map((s) => {
+      const tr = document.createElement('tr'); tr.dataset.key = s.ObjectID;
+      tr.style.setProperty('--sh-row', SH.TIER_COLOR[SH.tierOf(s)]);
+      COLS.forEach(([k]) => {
+        const td = document.createElement('td');
+        const v = k === 'place' ? SH.placeOf(s) : (s[k] || '');
+        if (k === 'website' && /^https?:\/\//.test(v)) { const a = document.createElement('a'); a.href = v; a.target = '_blank'; a.rel = 'noopener'; a.textContent = v; td.append(a); }
+        else td.textContent = v;
+        if (k === 'school_notes' || k === 'school_address') td.className = 'wrap';
+        tr.append(td);
+      });
+      return tr;
+    }));
+  };
+
+  SH.redraw = () => { if (SH.renderMap) SH.renderMap(); if (SH.renderDonut) SH.renderDonut(); renderSide(); renderFull(); };
+  dash.onData(() => { renderSide(); renderFull(); });
+})();
+</script>
