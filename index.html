@@ -306,7 +306,7 @@ SH.placeOf = (s) => (s.Ward && s.Ward !== 'N/A') ? s.Ward : s.MetroArea;
 SH.orgsOf = (s) => String(s.organizations || '').split(/[,、，]/).map((x) => x.trim()).filter(Boolean);
 SH.tierOf = (s) => SH.TIERS.includes(s.ministry_presence_tier) ? s.ministry_presence_tier : 'Not yet assessed';
 SH.params = () => {
-  const p = dash.params() || {};
+  const p = SHStore.params() || {};
   return { type: p.type || null, places: Array.isArray(p.places) ? p.places : [], org: p.org || null, tier: p.tier || null, closed: !!p.closed };
 };
 SH.filter = (rows) => {
@@ -364,11 +364,11 @@ dash.calc('places', {
   fOrg.replaceChildren(new Option('All organizations', ''), ...SH.ORGS.map((o) => new Option(o, o)));
   fTier.replaceChildren(new Option('All tiers', ''), new Option('No known presence (gaps)', 'gaps'), ...SH.TIERS.map((t) => new Option(t, t)));
 
-  fType.addEventListener('change', () => dash.setParams({ type: fType.value || null }));
-  fOrg.addEventListener('change', () => dash.setParams({ org: fOrg.value || null }));
-  fTier.addEventListener('change', () => dash.setParams({ tier: fTier.value || null }));
-  fClosed.addEventListener('change', () => dash.setParams({ closed: fClosed.checked }));
-  $('f-reset').addEventListener('click', () => { dash.resetParams(); dash.setParams({ type: null, places: [], org: null, tier: null, closed: false }); });
+  fType.addEventListener('change', () => SHStore.setParams({ type: fType.value || null }));
+  fOrg.addEventListener('change', () => SHStore.setParams({ org: fOrg.value || null }));
+  fTier.addEventListener('change', () => SHStore.setParams({ tier: fTier.value || null }));
+  fClosed.addEventListener('change', () => SHStore.setParams({ closed: fClosed.checked }));
+  $('f-reset').addEventListener('click', () => { SHStore.resetParams(); SHStore.setParams({ type: null, places: [], org: null, tier: null, closed: false }); });
 
   const toggle = $('filtertoggle');
   toggle.addEventListener('click', () => {
@@ -388,7 +388,7 @@ dash.calc('places', {
   });
   placeDrop.addEventListener('change', () => {
     const picked = [...placeDrop.querySelectorAll('input:checked')].map((i) => i.value);
-    dash.setParams({ places: picked });
+    SHStore.setParams({ places: picked });
   });
   const buildPlaceDrop = (rows) => {
     const counts = d3.rollup(rows, (v) => v.length, SH.placeOf);
@@ -406,9 +406,9 @@ dash.calc('places', {
     };
     const actions = document.createElement('div'); actions.className = 'sh-drop-actions';
     const city = document.createElement('button'); city.className = 'sh-link'; city.textContent = 'Sapporo City only';
-    city.addEventListener('click', () => dash.setParams({ places: SH.PLACES_CITY.slice() }));
+    city.addEventListener('click', () => SHStore.setParams({ places: SH.PLACES_CITY.slice() }));
     const clear = document.createElement('button'); clear.className = 'sh-link'; clear.textContent = 'Clear';
-    clear.addEventListener('click', () => dash.setParams({ places: [] }));
+    clear.addEventListener('click', () => SHStore.setParams({ places: [] }));
     actions.append(city, clear);
     placeDrop.replaceChildren(...group('札幌市', SH.PLACES_CITY), ...group('近郊', SH.PLACES_AREA), actions);
     placeBtn.textContent = !sel.length ? 'All 15 areas' : sel.length === 1 ? sel[0] : sel.length + ' areas';
@@ -417,7 +417,7 @@ dash.calc('places', {
   // Gaps card
   $('card-gaps').addEventListener('click', () => {
     const on = SH.params().tier === 'gaps';
-    dash.setParams({ tier: on ? null : 'gaps' });
+    SHStore.setParams({ tier: on ? null : 'gaps' });
   });
 
   // Tabs
@@ -434,7 +434,7 @@ dash.calc('places', {
   if (pages.includes(named)) show(named);
 
   const fmt = d3.format(',');
-  dash.onData(() => {
+  SHStore.onData(() => {
     const d = dash.data('schools');
     const k = dash.data('kpi');
     const p = SH.params();
@@ -736,7 +736,7 @@ dash.calc('places', {
   document.getElementById('zoom-reset').addEventListener('click', () => zoom && svg.transition().duration(350).call(zoom.transform, d3.zoomIdentity));
 
   SH.renderMap = render;
-  dash.onData(render);
+  SHStore.onData(render);
 })();
 </script>
 
@@ -776,7 +776,7 @@ dash.calc('places', {
     svg.selectAll('path').data(pie.filter((a) => a.data.n > 0)).join('path')
       .attr('d', arc).style('fill', (a) => SH.TYPE_COLOR[a.data.type])
       .attr('class', (a) => (saved && saved !== a.data.type ? 'sh-dim' : null))
-      .on('click', (event, a) => dash.setParams({ type: saved === a.data.type ? null : a.data.type }))
+      .on('click', (event, a) => SHStore.setParams({ type: saved === a.data.type ? null : a.data.type }))
       .append('title').text((a) => `${a.data.type}: ${a.data.n}`);
     svg.selectAll('text.seg').data(pie.filter((a) => a.endAngle - a.startAngle > 0.35)).join('text').attr('class', 'seg')
       .attr('transform', (a) => `translate(${arc.centroid(a)})`).text((a) => d3.format(',')(a.data.n));
@@ -793,12 +793,12 @@ dash.calc('places', {
       const n = document.createElement('span'); n.textContent = d3.format(',')(c.n);
       const pc = document.createElement('span'); pc.className = 'pc'; pc.textContent = total ? d3.format('.0%')(c.n / total) : '–';
       b.append(dot, name, n, pc);
-      b.addEventListener('click', () => dash.setParams({ type: saved === c.type ? null : c.type }));
+      b.addEventListener('click', () => SHStore.setParams({ type: saved === c.type ? null : c.type }));
       return b;
     }));
   };
   SH.renderDonut = render;
-  dash.onData(render);
+  SHStore.onData(render);
 })();
 </script>
 
@@ -882,6 +882,6 @@ dash.calc('places', {
   };
 
   SH.redraw = () => { if (SH.renderMap) SH.renderMap(); if (SH.renderDonut) SH.renderDonut(); renderSide(); renderFull(); };
-  dash.onData(() => { renderSide(); renderFull(); });
+  SHStore.onData(() => { renderSide(); renderFull(); });
 })();
 </script>
