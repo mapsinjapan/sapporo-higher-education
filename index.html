@@ -399,7 +399,7 @@ SH.selected = null; // ObjectID of the school shown in the popup
     if (!pages.includes(page)) return;
     SH.page = page;
     pages.forEach((p) => { $(p).hidden = p !== page; $('tab-' + p).setAttribute('aria-selected', String(p === page)); });
-    dash.setLink(page);
+    history.replaceState(null, '', '#' + page);
     if (SH.redraw) SH.redraw();
   };
   document.querySelectorAll('.sh-tab').forEach((b) => b.addEventListener('click', () => show(b.dataset.page)));
