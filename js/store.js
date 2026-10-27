@@ -140,17 +140,7 @@ function calculateKpi() {
               s.school_status !== 'Closed' &&
               s.school_status !== 'Closing'
           );
-function calculatePlaces() {
-  const schools = datasets.schools.data;
-
-  return schools.map((s) => ({
-    ObjectID: s.ObjectID,
-    place:
-      s.Ward && s.Ward !== 'N/A'
-        ? s.Ward
-        : s.MetroArea
-  }));
-}
+    
     const count = (tier) =>
       rows.filter(
         (s) => s.ministry_presence_tier === tier
@@ -175,6 +165,17 @@ function calculatePlaces() {
       ).length
     };
   });
+}
+  function calculatePlaces() {
+  const schools = datasets.schools.data;
+
+  return schools.map((s) => ({
+    ObjectID: s.ObjectID,
+    place:
+      s.Ward && s.Ward !== 'N/A'
+        ? s.Ward
+        : s.MetroArea
+  }));
 }
 function calc(id) {
   if (id === 'kpi') {
