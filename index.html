@@ -326,15 +326,6 @@ SH.page = 'overview';
 SH.selected = null; // ObjectID of the school shown in the popup
 </script>
 
-<script>
-
-dash.calc('places', {
-  inputs: ['schools'],
-  title: 'Ward or city per campus',
-  description: 'The Sapporo ward, or the city or town name for campuses outside Sapporo (where Ward is N/A).',
-  fn: (schools) => schools.map((s) => ({ ObjectID: s.ObjectID, place: (s.Ward && s.Ward !== 'N/A') ? s.Ward : s.MetroArea })),
-});
-</script>
 
 <script>
 // ---- Filters, tabs and fact cards ----
