@@ -435,8 +435,8 @@ dash.calc('places', {
 
   const fmt = d3.format(',');
   SHStore.onData(() => {
-    const d = dash.data('schools');
-    const k = dash.data('kpi');
+    const d = SHStore.data('schools');
+    const k = SHStore.data('kpi');
     const p = SH.params();
     const rows = d.status === 'ok' ? d.data : [];
 
@@ -661,12 +661,12 @@ dash.calc('places', {
 
   const render = () => {
     if (SH.page !== 'overview') return;
-    const d = dash.data('schools'), w = dash.data('wards');
+    const d = SHStore.data('schools'), w = SHStore.data('wards');
     if (d.status !== 'ok' || w.status !== 'ok') {
       if (d.status === 'error' || w.status === 'error') { svg.selectAll('*').remove(); legend.replaceChildren(); svg.append('text').attr('x', '50%').attr('y', '50%').attr('text-anchor', 'middle').style('fill', 'var(--color-fg-muted)').style('font-size', '12px').text('Failed to load'); }
       return;
     }
-    const sw = dash.data('subway'), jd = dash.data('jr'), wd = dash.data('water');
+    const sw = SHStore.data('subway'), jd = SHStore.data('jr'), wd = SHStore.data('water');
     if (sw.status === 'loading' || jd.status === 'loading' || wd.status === 'loading') return;
     const water = wd.status === 'ok' && Array.isArray(wd.data) ? wd.data : [];
     const subway = sw.status === 'ok' && Array.isArray(sw.data) ? sw.data : [];
@@ -747,7 +747,7 @@ dash.calc('places', {
   const leg = document.getElementById('typelegend');
   const render = () => {
     if (SH.page !== 'overview') return;
-    const d = dash.data('schools');
+    const d = SHStore.data('schools');
     if (d.status !== 'ok') {
       if (d.status === 'error') { el.classList.remove('dash-skeleton'); el.replaceChildren(); const f = document.createElement('div'); f.className = 'sh-failed'; f.textContent = 'Failed to load'; el.append(f); }
       return;
@@ -822,7 +822,7 @@ dash.calc('places', {
 
   const renderSide = () => {
     if (SH.page !== 'overview') return;
-    const d = dash.data('schools');
+    const d = SHStore.data('schools');
     if (d.status !== 'ok') { tb.replaceChildren(); return; }
     const rows = SH.filter(d.data).slice().sort((a, b) => {
       const x = val(a, sortKey), y = val(b, sortKey);
@@ -861,7 +861,7 @@ dash.calc('places', {
   search.addEventListener('input', () => renderFull());
   const renderFull = () => {
     if (SH.page !== 'schools') return;
-    const d = dash.data('schools');
+    const d = SHStore.data('schools');
     if (d.status !== 'ok') { fullBody.replaceChildren(); return; }
     const q = search.value.trim().toLowerCase();
     const rows = SH.filter(d.data).filter((s) => !q || COLS.some(([k]) => String(k === 'place' ? SH.placeOf(s) : s[k] || '').toLowerCase().includes(q)));
@@ -884,4 +884,7 @@ dash.calc('places', {
   SH.redraw = () => { if (SH.renderMap) SH.renderMap(); if (SH.renderDonut) SH.renderDonut(); renderSide(); renderFull(); };
   SHStore.onData(() => { renderSide(); renderFull(); });
 })();
+</script>
+<script>
+  SHStore.loadData();
 </script>
