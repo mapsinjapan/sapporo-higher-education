@@ -859,5 +859,33 @@ SH.selected = null; // ObjectID of the school shown in the popup
 })();
 </script>
 <script>
+function renderKpiBindings() {
+  const result = SHStore.calc("kpi");
+
+  if (!result || result.status !== "ok" || !Array.isArray(result.data)) {
+    return;
+  }
+
+  const scope = SHStore.params().closed ? "all" : "active";
+  const row = result.data.find(item => item.scope === scope);
+
+  if (!row) {
+    return;
+  }
+
+  document.querySelectorAll('[data-source="kpi"][data-field]').forEach(el => {
+    const field = el.dataset.field;
+
+    if (Object.prototype.hasOwnProperty.call(row, field)) {
+      el.textContent = row[field];
+    }
+  });
+}
+
+SHStore.onData(renderKpiBindings);
+renderKpiBindings();
+</script>
+
+<script>
   SHStore.loadData();
 </script>
